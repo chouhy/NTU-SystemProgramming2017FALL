@@ -1,0 +1,366 @@
+
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>SP17MP3</title>
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://systemprogrammingatntu.github.io//MP3">
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">System Programming Design (Fall 2017) at NTU</a>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <div class="post-content">
+    <h1 id="mp3-synchronization-among-clients-and-server">MP3: Synchronization among Clients and Server</h1>
+
+<h2 id="announcements">Announcements</h2>
+<ul>
+  <li>MP3作業競賽官網網址 <a href="http://wtf.csie.org:8000/">http://wtf.csie.org:8000/</a></li>
+  <li>作業問題請至GitHub上面的<a href="https://github.com/SystemProgrammingatNTU/mp3-discussion/issues">Issue頁面</a>討論，以利各位同學參考。</li>
+</ul>
+
+<h2 id="toc">TOC</h2>
+
+<ul id="markdown-toc">
+  <li><a href="#announcements" id="markdown-toc-announcements">Announcements</a></li>
+  <li><a href="#toc" id="markdown-toc-toc">TOC</a></li>
+  <li><a href="#due-date" id="markdown-toc-due-date">Due Date</a></li>
+  <li><a href="#submission" id="markdown-toc-submission">Submission</a></li>
+  <li><a href="#file-hierarchy" id="markdown-toc-file-hierarchy">File Hierarchy</a></li>
+  <li><a href="#introduction" id="markdown-toc-introduction">Introduction</a></li>
+  <li><a href="#the-md5-rush" id="markdown-toc-the-md5-rush">The MD5 RUSH</a></li>
+  <li><a href="#software-design" id="markdown-toc-software-design">Software Design</a></li>
+  <li><a href="#the-miner-client" id="markdown-toc-the-miner-client">The MINER Client</a>    <ul>
+      <li><a href="#usage" id="markdown-toc-usage">Usage</a></li>
+    </ul>
+  </li>
+  <li><a href="#the-boss-server" id="markdown-toc-the-boss-server">The BOSS Server</a>    <ul>
+      <li><a href="#usage-1" id="markdown-toc-usage-1">Usage</a></li>
+      <li><a href="#configuration-file" id="markdown-toc-configuration-file">Configuration File</a></li>
+    </ul>
+  </li>
+  <li><a href="#the-workflow" id="markdown-toc-the-workflow">The Workflow</a>    <ul>
+      <li><a href="#step-1" id="markdown-toc-step-1">Step 1</a></li>
+      <li><a href="#step-2" id="markdown-toc-step-2">Step 2</a></li>
+      <li><a href="#step-3" id="markdown-toc-step-3">Step 3</a></li>
+      <li><a href="#step-4" id="markdown-toc-step-4">Step 4</a></li>
+      <li><a href="#step-5" id="markdown-toc-step-5">Step 5</a></li>
+    </ul>
+  </li>
+  <li><a href="#server-command-line" id="markdown-toc-server-command-line">Server Command Line</a>    <ul>
+      <li><a href="#status" id="markdown-toc-status"><em>status</em></a></li>
+      <li><a href="#dump" id="markdown-toc-dump"><em>dump</em></a></li>
+      <li><a href="#quit" id="markdown-toc-quit"><em>quit</em></a></li>
+    </ul>
+  </li>
+  <li><a href="#implementation-techniques" id="markdown-toc-implementation-techniques">Implementation Techniques</a></li>
+  <li><a href="#grading" id="markdown-toc-grading">Grading</a>    <ul>
+      <li><a href="#baseline" id="markdown-toc-baseline">Baseline</a></li>
+      <li><a href="#limitations-and-guarantees" id="markdown-toc-limitations-and-guarantees">Limitations and Guarantees</a></li>
+      <li><a href="#example-grading-steps" id="markdown-toc-example-grading-steps">Example Grading Steps</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="due-date">Due Date</h2>
+<p>23:59, <strong>December 10, 2017</strong>. (注意改時)</p>
+
+<h2 id="submission">Submission</h2>
+<ul>
+  <li>5% penalty per day will be applied to late submission.</li>
+  <li>Assignments submitted after <strong>23:59, December 13</strong> will not be accepted. (注意改時)</li>
+  <li>Please create MP3 directory in your repository.</li>
+</ul>
+
+<h2 id="file-hierarchy">File Hierarchy</h2>
+
+<p>Please download <a href="/mp3/mp3-example.zip">mp3-example.zip</a> to get started. Create subdirs <code class="highlighter-rouge">client</code> and <code class="highlighter-rouge">server</code> under <code class="highlighter-rouge">MP3</code> directory. Both of them include the <code class="highlighter-rouge">Makefile</code>.</p>
+
+<p><strong>Note: a bug is fixed in sample code on Nov. 23. Thanks b05902005.</strong></p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>repo
+├── MP0
+│   └── ...
+├── MP1
+│   └── ...
+├── MP2
+│   └── ...
+└── MP3
+    ├── client
+    │   ├── Makefile
+    │   └── ...
+    └── server
+        ├── Makefile
+        └── ...
+</code></pre></div></div>
+
+<p>Make sure <code class="highlighter-rouge">client/Makefile</code> compiles and produces the binary <code class="highlighter-rouge">miner</code>. Besides, <code class="highlighter-rouge">server/Makefile</code> creates the binary <code class="highlighter-rouge">boss</code>.</p>
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">cd</span> /path/to/repo/server
+make
+./boss ... <span class="c"># launch server</span>
+
+<span class="nb">cd</span> /path/to/repo/client
+make
+./miner ... <span class="c"># launch client</span>
+</code></pre></div></div>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>The LOSER is back! Do you remember the server vs. single client scheme in MP2? LOSER cannot not be satisfied with this. It would be better to build a server to cooperates more and more clients.</p>
+
+<p>LOSER cannot be a forever loser, and is eager to make a change and become a boss someday. Today, there comes the great great epic challenge, the <strong>MD5 RUSH</strong>. All LOSERs gather here to make a bet. It’s a game. Let’s get prepared to be the final winner.</p>
+
+<p>In this assignment, there are BOSS and the MINERs, respectively the server and clients. The BOSS assign challenges to MINERs, while each MINER works hard to resolve it. Once a MINER digs out a treasure, the MINER should notify the BOSS. Then, BOSS calls other MINERs to cease mining and re-assign jobs.</p>
+
+<h2 id="the-md5-rush">The MD5 RUSH</h2>
+
+<p>A <em>mine</em> is an arbitrary binary string. Here is an example in C format string.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>"\x31\x30\x33"
+</code></pre></div></div>
+
+<p>A <em>1-treasure</em> is a binary string which MD5 hash in hex is prefixed with <strong>exactly</strong> 1 zero. For example, <code class="highlighter-rouge">\x31\x30\x33\x33\x30</code> is an <em>1-treasure</em>.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MD5("\x31\x30\x33\x33\x30") == 018dbfb5fec8d864714ede49cef50343
+</code></pre></div></div>
+
+<p>By appending arbitrary long suffix to <em>1-treasure</em>, we obtain a <em>2-treasure</em>. It must be prefixed with an <em>1-treasure</em>, and of course, its MD5 hash is prefixed with exactly 2 zeros. In general, <strong>an <em>(n+1)-treasure</em> is prefixed with an <em>n-treasure</em></strong>.</p>
+
+<p>From the example above, we can append <code class="highlighter-rouge">\x31\x30\x35\x37\x39</code> to turn it into a <em>2-treasure</em>.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MD5("\x31\x30\x33\x33\x30\x31\x30\x35\x37\x39") == 003862fe4f1610856a8b3e63bc3608e6
+</code></pre></div></div>
+
+<p>Here comes the the challenge: Let’s start with you student ID in upper case as your <em>mine</em>, say R06922148 for instance. By appending suffix to your <em>mine</em>, try to find out an <em>n-treasure</em> with <em>n</em> as large as possible.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MD5("R06922148" + "\xOO\xOO\xOO...") == 0000000?????????????????????????
+</code></pre></div></div>
+
+<h2 id="software-design">Software Design</h2>
+
+<p>The assignment code has two independent programs, the BOSS server and MINER client. The server communicats with clients through an input and an output <strong>named pipes</strong>, The server parses a config file and knows the challenge when it starts, and assigns jobs to clients. Every time a client discoveres an <em>n-treasures</em>, it notifies the server.</p>
+
+<p>If you are not familar with named pipes, see the materials in <a href="/mp3/howto.html">HOWTOs page</a>.</p>
+
+<p><img src="/mp3/architecture.png" alt="software architecture" /></p>
+
+<h2 id="the-miner-client">The MINER Client</h2>
+
+<h3 id="usage">Usage</h3>
+
+<p>By starting a MINER client, we pass the name, paths to input and output named pipes to arguments. The client should create the named pipes using <a href="https://linux.die.net/man/3/mkfifo"><code class="highlighter-rouge">mkfifo(3)</code></a>.</p>
+
+<p>For example, we start a miner named <em>loser</em>. It reads data from <code class="highlighter-rouge">/tmp/fifo_in</code>, and write data to <code class="highlighter-rouge">/tmp/fifo_out</code> to communicate with server.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Usage: ./miner MINER_NAME INPUT_FIFO OUTPUT_FIFO</span>
+~<span class="nv">$ </span>./miner loser /tmp/fifo_in /tmp/fifo_out
+
+<span class="c"># on another terminal</span>
+~<span class="nv">$ </span><span class="nb">ls</span> <span class="nt">-F</span> /tmp
+fifo_in|
+fifo_out|
+...
+</code></pre></div></div>
+
+<h2 id="the-boss-server">The BOSS Server</h2>
+
+<h3 id="usage-1">Usage</h3>
+
+<p>To launch the BOSS server, we provide a configuration file.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Usage: ./boss CONFIG_FILE</span>
+./boss config.txt
+</code></pre></div></div>
+
+<h3 id="configuration-file">Configuration File</h3>
+
+<p>The config file has fields of two types: one MINE and several MINER fields.</p>
+<ul>
+  <li>MINE: A file storing the binary string, the <em>mine</em>. The server will try to append some bytes to it to find out <em>treasures</em>.</li>
+  <li>MINER: A input/output named pipe pair corresponding to a specific MINER process. The paths are seperated by a single space, and paths are guaranteed to include no spaces.</li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MINE: /tmp/mine.bin\n
+MINER: /tmp/fifo1_in /tmp/fifo1_out\n
+MINER: /tmp/fifo2_in /tmp/fifo2_out\n
+...
+</code></pre></div></div>
+
+<h2 id="the-workflow">The Workflow</h2>
+
+<p>This section describes the steps and produce an <em>n-treasure</em>. You may refer to <code class="highlighter-rouge">workflow-example</code> dir in <code class="highlighter-rouge">mp3-example.zip</code>.</p>
+
+<h3 id="step-1">Step 1</h3>
+<p>We start several clients at the beginning, and place named pipes under <code class="highlighter-rouge">/tmp</code>. Then, these clients are await for the server.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># terminal 1</span>
+./miner Ada /tmp/ada_in /tmp/ada_out
+
+<span class="c"># terminal 2</span>
+./miner Margaret /tmp/margaret_in /tmp/margaret_out
+
+<span class="c"># terminal 3</span>
+./miner Hopper /tmp/hopper_in /tmp/hopper_out
+</code></pre></div></div>
+
+<h3 id="step-2">Step 2</h3>
+<p>Before launching a server, we create a server config file <code class="highlighter-rouge">~/config.txt</code>, and a <em>mine</em> file <code class="highlighter-rouge">/tmp/mine.bin</code>.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">echo</span> <span class="nt">-n</span> R06922148 <span class="o">&gt;</span> /tmp/mine.bin
+
+<span class="nb">cat</span> <span class="o">&gt;</span> ~/config.txt <span class="o">&lt;&lt;&lt;</span>EOF <span class="c"># this is a heredoc syntax</span>
+MINE: /tmp/mine.bin<span class="se">\n</span>
+MINER: /tmp/ada_in /tmp/ada_out<span class="se">\n</span>
+MINER: /tmp/margaret_in /tmp/margaret_out<span class="se">\n</span>
+MINER: /tmp/hopper_in /tmp/hopper_out<span class="se">\n</span>
+EOF<span class="se">\n</span>
+</code></pre></div></div>
+
+<h3 id="step-3">Step 3</h3>
+<p>Start the server. By the time each client acknowledges the connection from server, it prints <code class="highlighter-rouge">BOSS is mindful.\n</code> to the terminal, and start working on jobs assigned by server. <strong>You are free to design your own job assigning algorithm, and communication protocol.</strong>.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># yet another terminal</span>
+./boss ~/config.txt
+
+<span class="c"># each client's stdout</span>
+BOSS is mindful.<span class="se">\n</span>
+</code></pre></div></div>
+
+<h3 id="step-4">Step 4</h3>
+<p>The server keeps on waiting. Once any client discovers a <em>n-treasure</em>. The server is notified, and then broadcasts this message to other clients. For example, the Ada client found a <em>1-treasure</em>. It should print the <em>n</em> and its MD5 hash:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Ada's stdout
+I win a 1-treasure! 0129d0e20c610002cf6f6928b4ce1ee6\n
+</code></pre></div></div>
+
+<p>The server prints:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># server stdout
+A 1-treasure discovered! 0129d0e20c610002cf6f6928b4ce1ee6\n
+</code></pre></div></div>
+
+<p>The clients except Ada should print:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Other client's stdout
+Ada wins a 1-treasure! 0129d0e20c610002cf6f6928b4ce1ee6\n
+</code></pre></div></div>
+
+<p>Additionally, the server may re-assign the jobs to client to look for the next <em>4-treasure</em>.</p>
+
+<h3 id="step-5">Step 5</h3>
+<p>The server may receive user commands, <em>status</em>, <em>dump</em>, and <em>quit</em> from terminal. See the next section for details.</p>
+
+<h2 id="server-command-line">Server Command Line</h2>
+
+<p><strong>**Updated in Dec. 7: More clarification on commandsa**</strong></p>
+
+<p>The server should support commands from stdin, the <em>status</em>, and <em>dump</em>, and <em>quit</em>.</p>
+
+<h3 id="status"><em>status</em></h3>
+
+<p>By issuing the <em>status</em> command, the server prints the best <em>n-treasure</em>, its MD5 hash, and its size in bytes, whereas each client prints the MD5 hash that was computed in the most recent step. <strong>If the client has no assigned jobs, there’s nothing to print.</strong></p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># server stdin</span>
+status<span class="se">\n</span>
+
+<span class="c"># server stdout</span>
+best 3-treasure 0009d0e20c610002cf6f6928b4ce1ee6 <span class="k">in </span>10 bytes<span class="se">\n</span>
+
+<span class="c"># each client's stdout. the hash may vary from time to time</span>
+I<span class="s1">'m working on 9f2b728b6be550a8a2948af0a508b4d7\n
+</span></code></pre></div></div>
+
+<p>If there’s no <em>n-treasure</em> discovered so far, the server prints the following.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># server stdout</span>
+best 0-treasure <span class="k">in </span>0 bytes<span class="se">\n</span>
+</code></pre></div></div>
+
+<h3 id="dump"><em>dump</em></h3>
+
+<p>This command accepts an argument as output path. The server writes the best <em>n-treasure</em> to this file. Note the written file could be very large. <strong><em>dump</em> should not block the server from reading more user commands</strong> (try <code class="highlighter-rouge">select(2)</code>).</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># server stdin</span>
+dump /path/to/output/file<span class="se">\n</span>
+</code></pre></div></div>
+
+<h3 id="quit"><em>quit</em></h3>
+
+<p>This command causes the server to <strong>exit normally as soon as all previous dump commands are finished, and it doesn’t receive any further user commands. If the server is still reading the MINE file, the server exits immediatly in this case.</strong></p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># server stdin</span>
+quit<span class="se">\n</span>
+</code></pre></div></div>
+
+<p>By the time the server exits, each client should print <code class="highlighter-rouge">BOSS is at rest.\n</code> to stdout. <strong>Clients do not terminate</strong> when the server exits, and can be reused later.</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># client stdout</span>
+BOSS is at rest.<span class="se">\n</span>
+</code></pre></div></div>
+
+<h2 id="implementation-techniques">Implementation Techniques</h2>
+
+<p>See <a href="/mp3/howto.html">HOWTOs page</a> to check out useful techniques.</p>
+
+<h2 id="grading">Grading</h2>
+
+<h3 id="baseline">Baseline</h3>
+<ul>
+  <li>The client program can create named pipes on start up. TA has done it for you.</li>
+  <li>(3pts) Server handles multiple I/O, such as name pipes, output files indicated by <em>dump</em>, and commands from stdin.</li>
+  <li>(2pts) Discover a <em>3-treasure</em> in less than 30 minutes.</li>
+  <li>(3pts) The server correctly support the <em>status</em>, <em>dump</em> and <em>quit</em> commands. Each command takes one point.</li>
+  <li>(2pts) Clients can be reused by another server process.</li>
+  <li>(<strong>Bonus</strong>) Submit your <em>5-treasure</em> to <a href="http://wtf.csie.org:8000/">competition site</a> to get extra 1 point, or <em>7-treasure</em> to get extra 2 points.</li>
+</ul>
+
+<h3 id="limitations-and-guarantees">Limitations and Guarantees</h3>
+<ul>
+  <li>Each server and client process are limit in 2GB of RAM.</li>
+  <li>The file specifeid in MINE field in server config file is no more than 1GB.</li>
+  <li>Each server connects to no more than 8 clients.</li>
+  <li>Paths are guaranteed to include no spaces and do not exceed PATH_MAX in size.</li>
+  <li><strong>Multi-threading is not allowed.</strong></li>
+</ul>
+
+<h3 id="example-grading-steps">Example Grading Steps</h3>
+
+<ol>
+  <li>Create a file <code class="highlighter-rouge">mine.bin</code> storing the <em>mine</em> prefixed with your ID.</li>
+  <li>Start several client processes.</li>
+  <li>Create a config file <code class="highlighter-rouge">config.txt</code>, including the path to <code class="highlighter-rouge">mine.bin</code> and corresponding named pipes to clients.</li>
+  <li>Start the server.</li>
+  <li>Test <code class="highlighter-rouge">status</code>, <code class="highlighter-rouge">dump</code>, and <code class="highlighter-rouge">quit</code> commands.</li>
+</ol>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+  </body>
+
+</html>

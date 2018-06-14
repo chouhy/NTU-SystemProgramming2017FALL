@@ -1,0 +1,392 @@
+
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>SP17MP2</title>
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://systemprogrammingatntu.github.io//MP2">
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">System Programming Design (Fall 2017) at NTU</a>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <div class="post-content">
+    <p>The following machine problems will allow you to build a file sharing service, called CSIEBox. In this assignment, you will start with a fundamental functionality of CSIEBox, including uploading files and monitoring the changes on files and directories on the server.</p>
+
+<h2 id="due-date">Due Date:</h2>
+<p>23:59, <strong>November 10, 2017</strong>.</p>
+
+<h2 id="submission">Submission:</h2>
+<ul>
+  <li>
+    <p>5% penalty per day will be applied to late submission.</p>
+  </li>
+  <li>
+    <p>Assignments submitted after 00:01, November 14 will not be accepted.(Submission on November 14 will not be accepted)</p>
+  </li>
+  <li>
+    <p>Please create MP2 under your repository</p>
+  </li>
+</ul>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>repo
+├── MP0
+│   ├── Makefile
+│   └── other files
+├── MP1
+│   ├── Makefile
+│   └── other files
+└── MP2
+    ├── src/
+    ├── bin/
+    ├── sdir/
+    ├── cdir/
+    └── other folders
+</code></pre></div></div>
+
+<h2 id="source-code">Source Code</h2>
+<p>In this assignment, you can start programming from the following file instead of building whole project from scratch.</p>
+
+<p><strong><a href="/mp2/MP2.zip">MP2</a></strong></p>
+
+<p>(include inotify exmaple)</p>
+
+<p>There is a tutorial about how to run this code in the bottom.</p>
+<h2 id="introduction-video">Introduction Video</h2>
+<p><strong><a href="https://drive.google.com/file/d/0B-6X6hjKrksCM3JDa3BTRDVEZWs/view?usp=sharing">click me</a></strong></p>
+<h2 id="slide">Slide</h2>
+<p><strong><a href="/mp2/SPHW2.pptx">Download</a></strong></p>
+<h2 id="qa">Q&amp;A</h2>
+<p><strong><a href="/mp2/Q&amp;A.html">click me</a></strong></p>
+<h2 id="architecture">Architecture</h2>
+<h4 id="server-side">Server Side</h4>
+<p>The server keeps two files, which are <em>configuration file</em> and <em>account file</em>, to manage the file sharing service. Configuration file stores the path for service root directory<code class="highlighter-rouge">(sdir/)</code> and account file, where service root directory is used to store user files on server side. Each user account has its own home directory under service root directory<code class="highlighter-rouge">(sdir/&lt;user&gt;)</code>. Account file keeps the account information for all the users and is pointed by the account file path stated above.</p>
+
+<h4 id="client-side">Client Side</h4>
+<p>The client has its own configuration file, to store server address, account information, and path for local repository<code class="highlighter-rouge">(cdir/)</code>.</p>
+
+<h2 id="protocol-structure">Protocol Structure</h2>
+<p>Data structures for server and client communication are defined in provided package. You can find the data structure definitions in <strong>include/csiebox_common.h</strong>. You can find the example for client and server communication at <strong>csiebox_client.c::login</strong>.</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">union</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="kt">uint8_t</span> <span class="n">magic</span><span class="p">;</span>
+    <span class="kt">uint8_t</span> <span class="n">op</span><span class="p">;</span> 
+    <span class="kt">uint8_t</span> <span class="n">status</span><span class="p">;</span>
+    <span class="kt">uint16_t</span> <span class="n">client_id</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">datalen</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">req</span><span class="p">;</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="kt">uint8_t</span> <span class="n">magic</span><span class="p">;</span>
+    <span class="kt">uint8_t</span> <span class="n">op</span><span class="p">;</span> 
+    <span class="kt">uint8_t</span> <span class="n">status</span><span class="p">;</span>
+    <span class="kt">uint16_t</span> <span class="n">client_id</span><span class="p">;</span>
+    <span class="kt">uint32_t</span> <span class="n">datalen</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">res</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">bytes</span><span class="p">[</span><span class="mi">9</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_header</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>Struct csiebox_protocol_header is a base header for communication protocol between client and server, defined in <strong>csiebox_common.h</strong>.</p>
+
+<p>It consists of five attributes.</p>
+<ol>
+  <li>Attribute <code class="highlighter-rouge">Magic</code>, defined for security purpose.</li>
+  <li>Attribute <code class="highlighter-rouge">Op</code> defines operation code.</li>
+  <li>Attribute <code class="highlighter-rouge">Status</code> defines return status.</li>
+  <li>Attribute <code class="highlighter-rouge">Client_id</code> defines the identification of client processes, which will be used in multiple clients scenario.</li>
+  <li>Attribute <code class="highlighter-rouge">Datalen</code> defines the length of optional attributes and will be used to identify the types of optional attributes.</li>
+</ol>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">enum</span> <span class="p">{</span>
+  <span class="n">CSIEBOX_PROTOCOL_MAGIC_REQ</span> <span class="o">=</span> <span class="mh">0x90</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_MAGIC_RES</span> <span class="o">=</span> <span class="mh">0x91</span><span class="p">,</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_magic</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span> <span class="p">{</span>
+  <span class="n">CSIEBOX_PROTOCOL_OP_LOGIN</span> <span class="o">=</span> <span class="mh">0x00</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_OP_SYNC_META</span> <span class="o">=</span> <span class="mh">0x01</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_OP_SYNC_FILE</span> <span class="o">=</span> <span class="mh">0x02</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_OP_SYNC_HARDLINK</span> <span class="o">=</span> <span class="mh">0x03</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_OP_SYNC_END</span> <span class="o">=</span> <span class="mh">0x04</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_OP_RM</span> <span class="o">=</span> <span class="mh">0x05</span><span class="p">,</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_op</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span> <span class="p">{</span>
+  <span class="n">CSIEBOX_PROTOCOL_STATUS_OK</span> <span class="o">=</span> <span class="mh">0x00</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_STATUS_FAIL</span> <span class="o">=</span> <span class="mh">0x01</span><span class="p">,</span>
+  <span class="n">CSIEBOX_PROTOCOL_STATUS_MORE</span> <span class="o">=</span> <span class="mh">0x02</span><span class="p">,</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_status</span><span class="p">;</span>
+</code></pre></div></div>
+
+<h2 id="actions">Actions</h2>
+<p>The client/server communication protocols consist of four communication sessions: <strong>login</strong>, <strong>sync meta</strong>, <strong>sync file</strong>, <strong>hard link</strong>, and <strong>rm</strong>. Each client/server communication session has its corresponding data structure to represent the transmitted data. The following illustrate the four communication sessions.</p>
+
+<ul>
+  <li>You need to follow the rules of 5 actions, but you can modify any headers if you want. In other words, the only things that you can’t modify in HW2 is the rules of 5 actions</li>
+</ul>
+
+<h4 id="login-session">Login session:</h4>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">union</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">csiebox_protocol_header</span> <span class="n">header</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="p">{</span>
+      <span class="kt">uint8_t</span> <span class="n">user</span><span class="p">[</span><span class="n">USER_LEN_MAX</span><span class="p">];</span>
+      <span class="kt">uint8_t</span> <span class="n">passwd_hash</span><span class="p">[</span><span class="n">MD5_DIGEST_LENGTH</span><span class="p">];</span>
+    <span class="p">}</span> <span class="n">body</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">message</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">bytes</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">csiebox_protocol_header</span><span class="p">)</span> <span class="o">+</span> <span class="n">MD5_DIGEST_LENGTH</span> <span class="o">*</span> <span class="mi">2</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_login</span><span class="p">;</span>
+</code></pre></div></div>
+<p>Client sends user name and passwd_hash to server. If the user name and password matches, server returns OK in status field and client_id. Otherwise, FAIL is returned in status field.</p>
+
+<h4 id="sync-meta-session">Sync Meta session:</h4>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">union</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">csiebox_protocol_header</span> <span class="n">header</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="p">{</span>
+      <span class="kt">uint32_t</span> <span class="n">pathlen</span><span class="p">;</span>
+      <span class="k">struct</span> <span class="n">stat</span> <span class="n">stat</span><span class="p">;</span>
+      <span class="kt">uint8_t</span> <span class="n">hash</span><span class="p">[</span><span class="n">MD5_DIGEST_LENGTH</span><span class="p">];</span>
+    <span class="p">}</span> <span class="n">body</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">message</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">bytes</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">csiebox_protocol_header</span><span class="p">)</span> <span class="o">+</span>
+                <span class="mi">4</span> <span class="o">+</span>
+                <span class="k">sizeof</span><span class="p">(</span><span class="k">struct</span> <span class="n">stat</span><span class="p">)</span> <span class="o">+</span>
+                <span class="n">MD5_DIGEST_LENGTH</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_meta</span><span class="p">;</span>
+</code></pre></div></div>
+<p>When file/dir’s permission or time have been changed, client will send sync_meta request include file pathlen and meta stat to server followed by file path. Server returns OK if it sync meta successful, otherwise, FAIL is returned in status field.</p>
+
+<h4 id="sync-file-session">Sync File session:</h4>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">union</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">csiebox_protocol_header</span> <span class="n">header</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="p">{</span>
+      <span class="kt">uint32_t</span> <span class="n">pathlen</span><span class="p">;</span>
+      <span class="k">struct</span> <span class="n">stat</span> <span class="n">stat</span><span class="p">;</span>
+      <span class="kt">uint8_t</span> <span class="n">hash</span><span class="p">[</span><span class="n">MD5_DIGEST_LENGTH</span><span class="p">];</span>
+    <span class="p">}</span> <span class="n">body</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">message</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">bytes</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">csiebox_protocol_header</span><span class="p">)</span> <span class="o">+</span>
+                <span class="mi">4</span> <span class="o">+</span>
+                <span class="k">sizeof</span><span class="p">(</span><span class="k">struct</span> <span class="n">stat</span><span class="p">)</span> <span class="o">+</span>
+                <span class="n">MD5_DIGEST_LENGTH</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_meta</span><span class="p">;</span>
+</code></pre></div></div>
+<p>Sync file session consists of two steps in this operation. First, the client sends a sync_meta request which provides struct stat, file path length and file hash. Then, the client sends file path to server followed, and server can use path length in sync_meta header to retrieve the path from a character array. Server has to sync meta, and it checks the file hash, if file hash on client is different from that on server, the server returns MORE and the client will send file data to server. Otherwise, the server returns OK and terminates the session.</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">union</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">csiebox_protocol_header</span> <span class="n">header</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="p">{</span>
+      <span class="kt">uint64_t</span> <span class="n">datalen</span><span class="p">;</span>
+    <span class="p">}</span> <span class="n">body</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">message</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">bytes</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">csiebox_protocol_header</span><span class="p">)</span> <span class="o">+</span> <span class="mi">8</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_file</span><span class="p">;</span>
+</code></pre></div></div>
+<p>When client receives MORE, client sends file header to server, followed by file data.</p>
+
+<h4 id="hard-link-session">Hard Link session:</h4>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">union</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">csiebox_protocol_header</span> <span class="n">header</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="p">{</span>
+      <span class="kt">uint32_t</span> <span class="n">srclen</span><span class="p">;</span>
+      <span class="kt">uint32_t</span> <span class="n">targetlen</span><span class="p">;</span>
+    <span class="p">}</span> <span class="n">body</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">message</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">bytes</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">csiebox_protocol_header</span><span class="p">)</span> <span class="o">+</span> <span class="mi">8</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_hardlink</span><span class="p">;</span>
+</code></pre></div></div>
+<p>The client sends source path length and target path length to server, followed by source and target path. If a hard link is successfully created, server returns OK in status field. Otherwise, it returns FAIL in status field.</p>
+
+<p>Hint: you can use <code class="highlighter-rouge">lstat()</code> to check <code class="highlighter-rouge">Inode</code> to determine either it is hard link or not. <a href="https://en.wikipedia.org/wiki/Inode">Learn more about Inode</a> or check out ch4.14 in _Advanced programming in the Unix Environment.</p>
+
+<h4 id="rm-session">Rm session:</h4>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">union</span> <span class="p">{</span>
+  <span class="k">struct</span> <span class="p">{</span>
+    <span class="n">csiebox_protocol_header</span> <span class="n">header</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="p">{</span>
+      <span class="kt">uint32_t</span> <span class="n">pathlen</span><span class="p">;</span>
+    <span class="p">}</span> <span class="n">body</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">message</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">bytes</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">csiebox_protocol_header</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">csiebox_protocol_rm</span><span class="p">;</span>
+</code></pre></div></div>
+<p>The client sends request path length to server, followed by path data. If the file/directory is successfully removed on the server, the server returns OK in status field. Otherwise, it returns FAIL in status field.</p>
+
+<p>Hint:  because server can receive pathlen in protocol header, so you can use this pathlen to receive the following path by <code class="highlighter-rouge">recv_message(conn_fd, buf, rm-&gt;message.body.pathlen);</code></p>
+
+<h2 id="requirement">Requirement</h2>
+<p>You need to complete the process for linking your local repository to a newly created CSIEbox account. Hence, the process will synchronize the files and directories under client’s local repository, which may or may not be empty, to the server, which is empty. When the process completes, the content of the directories on client side and server must be identical.</p>
+
+<p>The process consists of following steps:</p>
+<ol>
+  <li><strong>Scan the directory:</strong> The process traverses/scans the local repository directory to find out the existed files and directories, and do the synchronization. In this step, the process starts from the top of local repository and transmits all the files and directories to the server side. You will use the provided <code class="highlighter-rouge">socket</code> communication template to transmit the files. However, you have to handle the operations for maintaining directories including creating directories, reconstructing soft/hard link on the server sides, etc.</li>
+  <li><strong>Monitor the changes on files, directories on local repository:</strong> To keep the file/directories to be up-to-date with the local repository, the process has to monitor if there is any change on files/directories. For this purpose, you can use <code class="highlighter-rouge">inotify API</code>, which can monitor file system events, to learn the update and conduct corresponding operations. Example program of using <code class="highlighter-rouge">inotify API</code> is available in the provided package, which is <strong>inotify_test.c</strong>.</li>
+</ol>
+
+<p>Note that you have to pay special attention on handling the changes on <strong>links</strong>. In the case of symbolic link, you need to update the value of link instead of updating the content it points to. Even if the file which the symbolic link points to is out of the local repository, or it is a bad link, or there is a loop in the symbolic links, we should do the synchronization anyway. A hard link should be processed in two cases. If it links to a file within the directory tree of local repository, it should remain to be a hard link on server side. Otherwise, it should be treated as a regular file, rather than a hard link.</p>
+
+<h2 id="grading">Grading</h2>
+<p>This assignment counts 8 points in final grade. The assignment will be graded according to the following criteria.</p>
+
+<ol>
+  <li>5 points for synchronizing existed files and directories between client and server. It includes traversing directory tree on client’s side, and transmit the file and directories to server.
+    <ul>
+      <li>(1 point) traverse directory tree: output the longest path on local repository by creating a file named longestPath.txt under <code class="highlighter-rouge">cdir/</code>. For example, path <code class="highlighter-rouge">cdir/a/b/c/d/e/f/g/h/i/j/k</code> is longer than path <code class="highlighter-rouge">cdir/a/b/c</code>. Therefore, <code class="highlighter-rouge">a/b/c/d/e/f/g/h/i/j/k</code> is output to <code class="highlighter-rouge">cdir/longestPath.txt</code>(In test data, no file will be named longest.txt). There is only one longest path in test data, and you only need to consider the directory and file in this part.(ignore symbolic link)</li>
+      <li>(1 point) handling regular file on server side</li>
+      <li>(1 point) handling directory on server side</li>
+      <li>(1 point) handling soft link on server side</li>
+      <li>(1 point) handling hard link on server side</li>
+    </ul>
+  </li>
+  <li>3 points for synchronizing the files, including regular files and directories, newly created or modified under local repository to server. This requirements needs to use <code class="highlighter-rouge">inotify API</code>, which can monitor file system update events and notify the process.
+    <ul>
+      <li>(1 point) handling Sync meta session(include st_mode, st_atime, st_mtime)</li>
+      <li>(1 point) handling Sync file and directory session</li>
+      <li>(1 point) handling Rm session</li>
+    </ul>
+  </li>
+</ol>
+
+<ul>
+  <li>Note 1: All name of dir/file will not exceed 100 characters. The longest path will not exceed 300 characters.</li>
+  <li>Note 2: Size of file data will not exceed 4000 characters.</li>
+  <li>Note 3: The maximum number of file plus subdirectory will not exceed 300.</li>
+  <li>Note 4: Time limit of each test case is 30s.</li>
+</ul>
+
+<h2 id="ta-grading-step">TA Grading step</h2>
+
+<ol>
+  <li>Put some test data in <code class="highlighter-rouge">cdir/</code>.</li>
+  <li>Execute <code class="highlighter-rouge">make</code> command under <code class="highlighter-rouge">src/</code>.</li>
+  <li>Execute <code class="highlighter-rouge">./csiebox_server ../config/server.cfg</code>, <code class="highlighter-rouge">./csiebox_client ../config/client.cfg</code> under <code class="highlighter-rouge">bin/</code>.</li>
+  <li>Compare files, directories, soft/hard links between <code class="highlighter-rouge">cdir/</code> and <code class="highlighter-rouge">sdir/</code>.</li>
+</ol>
+
+<h2 id="implementation">Implementation</h2>
+<h3 id="meaning-of-files">Meaning of files</h3>
+<ol>
+  <li><strong>csiebox_client.c:</strong> this’s the process to simulate client, you need to implement your code about client action in this file.</li>
+  <li><strong>csiebox_server.c:</strong> this’s the process to simulate server, you need to implement your code about server action in this file.</li>
+  <li>
+    <p><strong>hash.c:</strong> provide a build data structure, which can help you to manage the relation of <strong>inotify id</strong> and <strong>monitored dir path</strong>. By <code class="highlighter-rouge">inotify API</code>, you can use <code class="highlighter-rouge">wd = inotify_add_watch(inotify_fd, "/PathOfDir_YouWantToMonitor", IN_CREATE | IN_DELETE | IN_ATTRIB | IN_MODIFY)</code> to add a monitor on a directory , so <strong>wd</strong> is the inotify id and <strong>/PathOfDir_YouWantToMonitor</strong> is the directory path. You can use <code class="highlighter-rouge">put_into_hash(&amp;(client-&gt;inotify_hash), (void*)inotify_path, wd)</code> to store this relation and use <code class="highlighter-rouge">get_from_hash(&amp;(client-&gt;inotify_hash), (void**)&amp;wd_path, event-&gt;wd)</code> to retrive the monitored directory path by event-&gt;wd.</p>
+
+    <p>Note: You can also use another way to record the relation between inotify id and directory path, for example, you can use char array to maintain this.</p>
+  </li>
+  <li><strong>connect.c, port_register.c, csiebox_common.c:</strong> connect between client process and server process.</li>
+  <li><strong>inotify_test.c:</strong> a test program about inotify, you need to learn how to use it, and write an inotify system in <strong>csiebox_client.c</strong>.</li>
+</ol>
+
+<h3 id="linux-command-in-c-language">Linux command in C language</h3>
+<p>To handle/traverse/modify directory tree, you can use the function that Linux command provide for C language <a href="http://man7.org/linux/man-pages/dir_all_by_section.html#top">at this website.</a></p>
+
+<p>Hear are some useful command</p>
+<ol>
+  <li><code class="highlighter-rouge">getcwd</code>: get current dir name.</li>
+  <li><code class="highlighter-rouge">opendir</code>, <code class="highlighter-rouge">readdir</code>: opendir can open a directory, and readdir can read a dirertory. These functions can help you to traverse directory tree.</li>
+  <li><code class="highlighter-rouge">chdir</code>: change working directory.</li>
+  <li><code class="highlighter-rouge">closedir</code>: close a directory.</li>
+  <li><code class="highlighter-rouge">mkdir</code>: make directories.</li>
+  <li><code class="highlighter-rouge">lstat</code>: get file status. This help you to get metadata/inode information.</li>
+  <li><code class="highlighter-rouge">readlink</code>: print resolved symbolic links or canonical file names.</li>
+  <li><code class="highlighter-rouge">symlink</code>: symbolic link handling. (create sofylink)</li>
+  <li><code class="highlighter-rouge">link</code>: call the link function to create a link to a file. (create hardlink)</li>
+  <li><code class="highlighter-rouge">rmdir</code>: delete a directory.</li>
+  <li><code class="highlighter-rouge">unlink</code>: call the unlink function to remove the specified file.</li>
+</ol>
+
+<h3 id="how-to-run">How to run?</h3>
+<h4 id="0-compile-code">0. Compile code</h4>
+<ol>
+  <li>under <code class="highlighter-rouge">src/</code> directory
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  make
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+<h4 id="1-modify-servercfg-clientcfg-account">1. Modify server.cfg, client.cfg, account</h4>
+<ol>
+  <li>
+    <p>server.cfg
+Path: <code class="highlighter-rouge">../sdir</code>          <br />
+Account_path: <code class="highlighter-rouge">../config/account</code></p>
+  </li>
+  <li>
+    <p>client.cfg         <br />
+Name: <code class="highlighter-rouge">&lt;your account name, student ID in work station&gt;</code>          <br />
+Server: <code class="highlighter-rouge">localhost</code>                                                                   <br />
+User: <code class="highlighter-rouge">&lt;username in account file&gt;</code>                                                     <br />
+Passwd: <code class="highlighter-rouge">&lt;password in account file&gt;</code>                                                                                   <br />
+Path: <code class="highlighter-rouge">../cdir</code></p>
+  </li>
+  <li>
+    <p>account           <br />
+<code class="highlighter-rouge">&lt;username&gt;,&lt;password&gt;</code></p>
+  </li>
+</ol>
+
+<h4 id="2-we-will-run-port_register-on-linux115-for-you-so-you-dont-need-to-do-this-step">2. We will run port_register on linux1~15 for you, so you don’t need to do this step.</h4>
+<p><strong>Note:</strong> port_register is a daemon which provide port management service</p>
+
+<h4 id="3-run-server">3. Run server</h4>
+
+<p>(under <code class="highlighter-rouge">bin/</code> directory)</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./csiebox_server ../config/server.cfg
+</code></pre></div></div>
+<p><img src="https://github.com/SytemProgramming2015FallatNTU/Announcement/blob/master/images/hw2/login1.PNG" alt="" /></p>
+<h4 id="4-finally-run-client">4. Finally run client</h4>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./csiebox_client ../config/client.cfg
+</code></pre></div></div>
+<p><img src="https://github.com/SytemProgramming2015FallatNTU/Announcement/blob/master/images/hw2/login2.PNG" alt="" /></p>
+
+<h3 id="how-to-communicate-between-client-and-server">How to communicate between client and server?</h3>
+<p>In following homework, you will use <code class="highlighter-rouge">socket</code> to transmit message between client and server. And don’t worry, we have built up this, you only have to pay attention to the process of synchronization and use <code class="highlighter-rouge">socket</code> functions which we build for you to transmit messages. You can get more introducing about <code class="highlighter-rouge">socket</code> <a href="http://wmnlab.ee.ntu.edu.tw/nmlab/exp1_socket.html">at this website.</a></p>
+
+<h3 id="recommend-steps">Recommend steps</h3>
+<ol>
+  <li>Download <a href="/mp2/MP2.zip">MP2</a> project.</li>
+  <li>Modify config file and make the project under <code class="highlighter-rouge">src/</code> directory.</li>
+  <li>Run server and client, and finish login success.</li>
+  <li>Practice <code class="highlighter-rouge">inotify API</code> on inotify_test.c.</li>
+  <li>Trace server and client code, especially on <strong>login</strong> function (learn how to use TA-defined socket func. and protocol header).</li>
+  <li>Start you code on sync every changes with <code class="highlighter-rouge">inotify API</code> after client and server have been connect.</li>
+  <li>Traverse client’s local directory tree at the beginning of connect of client and server.</li>
+  <li>Push to github.ヽ(*´∀`)ﾉ</li>
+</ol>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+  </body>
+
+</html>

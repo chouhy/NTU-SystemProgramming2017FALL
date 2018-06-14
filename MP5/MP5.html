@@ -1,0 +1,203 @@
+
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>SP17MP5</title>
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://systemprogrammingatntu.github.io//MP5">
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">System Programming Design (Fall 2017) at NTU</a>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post">
+
+  <div class="post-content">
+    <p>In this homework, there are two goals: communicating with server monitor and daemonizing your applications on server. For the first part, you should develop a monitor system of server to collect statistic data from the server. How to communicate with the monitor system without affecting original functionality is the keypoint of this homework. For the second part, you should daemonize the csiebox_server and terminate the daemon process properly. You might always shut down your own program by typing Ctrl+C in the past. However, a well-behaviored program should handle exit state carefully, for example, saving current state and cleaning temporary files. If you do not properly handle termination signals such as SIGTERM and SIGINT, the terminated process will not release assigned resources such as temporary files and IPC connections. You will practice this procedure in this homework.</p>
+
+<p>TA EMAIL:r06922120@ntu.edu.tw</p>
+
+<h2 id="due-date">Due Date:</h2>
+<blockquote>
+  <p>11:59PM, <strong>January 14, 2018</strong>.
+late submission is not acceptable</p>
+  <h2 id="slide">Slide</h2>
+  <p><a href="/mp5/MP5.pptx">Download</a></p>
+</blockquote>
+
+<h2 id="source-code">Source Code</h2>
+<blockquote>
+  <p><a href="/mp5/MP5.tar.gz">Download</a></p>
+</blockquote>
+
+<p>這邊的source code是MP2的答案加上multithread部分,原本的MP2只能一個user使用,而這份code已經可以多個user同時連線(MP5/config/account 裡面可以新增user)</p>
+
+<p>1.MP5/config/server.cfg 裡面的thread可以設定threadpool裡面有多少個thread,這邊助教預設是5,可以不需要修改</p>
+
+<p>2.助教已經在這份code裡面新增了user2,詳見MP5/config/account, MP5/cdir2, MP5/condif/client2.cfg)</p>
+
+<p>跟MP2一樣,請先把<code class="highlighter-rouge">MP5/config/client.cfg</code> &amp; <code class="highlighter-rouge">MP5/config/client2.cfg</code> 裡面的name改成你的工作站帳號(學號)</p>
+
+<p>這次大家開啟三個terminal來測試
+(請先在<code class="highlighter-rouge">MP5/src</code>底下<code class="highlighter-rouge">make</code>後, 分別在不同的terminal在<code class="highlighter-rouge">MP5/bin</code>底下執行)</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>./csiebox_server ../config/server.cfg
+<span class="nv">$ </span>./csiebox_client ../config/client.cfg
+<span class="nv">$ </span>./csiebox_client ../config/client2.cfg
+</code></pre></div></div>
+
+<p>注: 要可以在nodejs server上看到你的csiebox server, 請在MP5/script下使用 ./csiebox_server.sh start 啟動 </p>
+
+<p>執行完後可以到<code class="highlighter-rouge">MP5/sdir</code>下檢查可以看到兩個不同的user的資料都被上傳上來了</p>
+<h2 id="first-part-communicating-with-server-monitor">First Part: Communicating with Server Monitor</h2>
+
+<p>TA will provide a web-based monitoring system. The server monitor will send a signal to your csiebox_server to collect data. You should allow your server to catch and react to the signal.</p>
+
+<h3 id="installation-guide-for-server-monitor">Installation Guide for Server Monitor</h3>
+<h5 id="1-start">1. Start</h5>
+<p>Download source code above.
+Since <code class="highlighter-rouge">nodejs</code> has been installed on linux1~15 workstation, you can run directly.</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cd </span>MP5/web
+<span class="nv">$ </span>node app.js
+</code></pre></div></div>
+<p>You will see</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Express server listening on port: <span class="o">[</span>port]
+</code></pre></div></div>
+<p>assume this example runs on linux2, you can go to http://linux2.csie.org:[port]</p>
+
+<p>The web system also needs to register port to port_register. If success, you will see “Express server listening on port: PORT”. Then, you can open your browse by typing http://linux1~15.csie.ntu.edu.tw:[PORT].
+<img src="https://i.imgur.com/KmUs6kK.jpg" alt="" />
+After you run up server, the web system will show the server by its pid.</p>
+
+<h5 id="2-stop">2. Stop</h5>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>Ctrl + C
+</code></pre></div></div>
+
+<h3 id="active-threads-statics">Active Threads Statics</h3>
+<ol>
+  <li>Add run_path=[path] in the config file of the server and create “run” directory in your project director.(E.g.,run_path=../run)</li>
+  <li>After starting, the server should create a fifo under the run_path named “fifo.[pid]” (pid should be the pid of the server)</li>
+  <li>The server monitor will send <strong>SIGUSR1</strong> to the server process and request for data.</li>
+  <li>After catching the signal, server will write how many threads in the thread pool are active to the fifo between server process and web process. <strong>Notice:</strong> Before writing an integer into the file, you should pass the integer into <code class="highlighter-rouge">htonl</code>. This is for endianness. Moreover, you should write 4 bytes by using <strong>uint32_t</strong> instead of <strong>int</strong>.</li>
+  <li>Before terminated(by SIGTERM &amp; SIGINT as stopping signal), the server should delete the fifo.</li>
+</ol>
+
+<p>注意:第1點run_path 助教已經幫大家在server.cfg內加入(run_path的路徑會到MP5/run),不需要修改</p>
+<h2 id="second-part-daemonize">Second Part: Daemonize</h2>
+<p>You will practice how to daemonize server process: csiebox_server. TA will provide a start-stop script for you. The script will create a pidfile under the run_path named “csiebox_server.pid”. The pidfile will contain the pid of current running csiebox_server. The recorded pid will be used by start-stop script to stop the process. However, during the process of daemonization, the pid will be changed. You should update the pidfile to make the start-stop script can stop the csiebox_server correctly.</p>
+
+<p>You can find the script is at <strong>script/csiebox_server.sh</strong></p>
+
+<h3 id="usage-of-csiebox_serversh">Usage of csiebox_server.sh</h3>
+<ol>
+  <li>Start server
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>./csiebox_server.sh start
+</code></pre></div>    </div>
+    <p><img src="https://github.com/SytemProgramming2015FallatNTU/Announcement/blob/master/images/hw5/daemonize1.png" alt="" /></p>
+  </li>
+  <li>Stop server
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>./csiebox_server.sh stop
+</code></pre></div>    </div>
+    <p><img src="https://github.com/SytemProgramming2015FallatNTU/Announcement/blob/master/images/hw5/daemonize2.png" alt="" /></p>
+  </li>
+</ol>
+
+<h3 id="daemonize">Daemonize</h3>
+<ol>
+  <li>Change Usage description in <strong>csiebox_server_init</strong> to <code class="highlighter-rouge">Usage: %s [config file] [-d]\n</code></li>
+  <li>Change <strong>parse_arg</strong> to accept argc more than 2 and make a flag in <code class="highlighter-rouge">struct csiebox_server</code> if <strong>-d</strong> is specified.</li>
+  <li>You may Call daemonize at the end of <strong>csiebox_server_init</strong>.</li>
+  <li>After daemonized, csiebox_server should update the pidfile.</li>
+  <li>Handle SIGTERM &amp; SIGINT as stopping signal.</li>
+</ol>
+
+<h2 id="grading">Grading</h2>
+<ol>
+  <li>First Part: Communicating with Server Monitor</li>
+  <li>(1 point) Create FIFO</li>
+  <li>(1 point) Clean FIFO before program terminates</li>
+  <li>(2 point) Catch SIGUSR1 and send thread count to FIFO</li>
+  <li>Second Part: Daemonize</li>
+  <li>(1 point) Script start &amp; pid of daemon process</li>
+  <li>(1 point) Daemonize</li>
+  <li>(2 point) Script terminate daemon process</li>
+</ol>
+
+<h2 id="注意事項">注意事項</h2>
+<p>A.upload format:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>repo
+├── MP0
+│   ├── Makefile
+│   └── other files
+├── MP1
+│   ├── Makefile
+│   └── other files
+└── MP5
+    ├── src/
+    ├── config/
+    ├── include/
+    ├── web/
+    └── script/
+</code></pre></div></div>
+<p>B.使用script stop csie_box後只要有把process kill掉就好,中間出現的錯誤訊息沒關係</p>
+
+<p>C.評分步驟</p>
+
+<ol>
+  <li>
+    <p>用script start 你的csie_box後, 有在run/下面建立 FIFO (得一分)</p>
+  </li>
+  <li>
+    <p>用script stop  你的csie_box後, 有把run/底下的FIFO清掉(得一分)</p>
+  </li>
+  <li>
+    <p>開起node js後, 可以由瀏覽器看到目前的active_thread_num(得兩分)</p>
+  </li>
+  <li>
+    <p>用script start 你的csie_box, 且 csie_box 成功damonize(得一分)</p>
+  </li>
+  <li>
+    <p>damonize後有正確更新run/底下csiebox_server.pid的內容(得一分)</p>
+  </li>
+  <li>
+    <p>使用script可以正確terminate 你的 daemonized csie_box(得兩分)</p>
+  </li>
+</ol>
+
+<p>D.deadline:1/14 23:59 (不接受遲交,遲交以0分計算)</p>
+<h2 id="reference">Reference</h2>
+<ol>
+  <li><a href="http://linux.die.net/man/3/htonl">htonl(3) - Linux man page</a></li>
+  <li><a href="https://en.wikipedia.org/wiki/Endianness">Endianness</a></li>
+  <li>You may use <code class="highlighter-rouge">fork()</code> in daemonize, to ensure the resource of work station, you can use <code class="highlighter-rouge">ps -ux</code> to check all of your running processes and use <code class="highlighter-rouge">kill [pid]</code> to kill it. Or you can use <code class="highlighter-rouge">pkill -u b05xxxxxxx</code> to kill all of your running processes.</li>
+</ol>
+
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+  </body>
+
+</html>

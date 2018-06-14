@@ -1,0 +1,35 @@
+login
+
+sync meta
+req_path: ../sdir/user/testfile
+sync file: 0
+regular file
+
+sync meta
+req_path: ../sdir/user/test1
+sync file: 0
+dir
+
+sync meta
+req_path: ../sdir/user/test1/wef
+sync file: 8
+regular file
+
+sync end
+login
+
+sync meta
+req_path: ../sdir/user2/test2
+sync file: 0
+dir
+
+sync meta
+req_path: ../sdir/user2/testfile2
+sync file: 0
+regular file
+
+sync end
+
+end of connection
+
+end of connection
